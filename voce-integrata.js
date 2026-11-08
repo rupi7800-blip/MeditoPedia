@@ -33,64 +33,83 @@ function fnv(s){ let h=0x811c9dc5; for(let i=0;i<s.length;i++){ h^=s.charCodeAt(
 const indici = {}, pacchetti = {}, cache = new Map();
 function indice(voce){ if(!indici[voce]){ indici[voce]=fetch(BASE+voce+"/indice.json").then(r=>{ if(!r.ok) throw 0; return r.json(); }); indici[voce].catch(()=>delete indici[voce]); } return indici[voce]; }
 function pacchetto(voce,nome){ const k=voce+"/"+nome; if(!pacchetti[k]){ pacchetti[k]=fetch(BASE+k+".bin").then(r=>{ if(!r.ok) throw 0; return r.arrayBuffer(); }); pacchetti[k].catch(()=>delete pacchetti[k]); } return pacchetti[k]; }
-function load(t){
+function decode(ab){ return new Promise((res,rej)=>{ const p=A.ctx.decodeAudioData(ab,res,rej); if(p&&p.then) p.then(res,rej); }); }
+function loadRaw(t){
  const voce=ST.voceInt, h=fnv(t.trim()), key=voce+":"+h;
  if(!cache.has(key)){
-  const pr=indice(voce).then(ix=>{ const e=ix[h]; if(!e) throw new Error("manca");
-   return pacchetto(voce,e[0]).then(ab=>URL.createObjectURL(new Blob([ab.slice(e[1],e[1]+e[2])],{type:"audio/mpeg"}))); });
+  const pr=indice(voce).then(ix=>{ const e=ix[h]; if(!e) throw new Error("manca"); return pacchetto(voce,e[0]).then(ab=>decode(ab.slice(e[1],e[1]+e[2]))); });
   pr.catch(()=>cache.delete(key));
   cache.set(key,pr);
-  if(cache.size>80){ const k=cache.keys().next().value; cache.get(k).then(u=>URL.revokeObjectURL(u),()=>{}); cache.delete(k); }
+  if(cache.size>80) cache.delete(cache.keys().next().value);
  }
  return cache.get(key);
+}
+/* velocità: time-stretch WSOLA, cambia il ritmo senza alterare il timbro */
+const stretched=new Map();
+function stretch(buf,rate){
+ if(Math.abs(rate-1)<.01) return buf;
+ const x=buf.getChannelData(0), sr=buf.sampleRate, L=x.length;
+ const N=Math.round(sr*.04)&~1, Hs=N/2, Ha=Hs*rate, tol=Math.round(sr*.012);
+ const outLen=Math.ceil(L/rate)+N, y=new Float32Array(outLen), nrm=new Float32Array(outLen), w=new Float32Array(N);
+ for(let i=0;i<N;i++) w[i]=.5-.5*Math.cos(2*Math.PI*i/(N-1));
+ let prev=0, k=0, last=0;
+ for(;;k++){
+  const op=k*Hs, nom=Math.round(k*Ha);
+  if(nom+N>=L||op+N>=outLen) break;
+  let best=nom;
+  if(k>0){ const ref=prev+Hs; let bc=-Infinity;
+   for(let d=-tol;d<=tol;d+=2){ const p=nom+d; if(p<0||p+N>=L||ref+N>=L) continue; let c=0; for(let i=0;i<N;i+=3) c+=x[ref+i]*x[p+i]; if(c>bc){bc=c;best=p;} } }
+  for(let i=0;i<N;i++){ y[op+i]+=x[best+i]*w[i]; nrm[op+i]+=w[i]; }
+  prev=best; last=op+N;
+ }
+ for(let i=0;i<last;i++) if(nrm[i]>1e-3) y[i]/=nrm[i];
+ const out=A.ctx.createBuffer(1,Math.max(1,last),sr); out.getChannelData(0).set(y.subarray(0,Math.max(1,last)));
+ return out;
+}
+function load(t){
+ const sp=ST.voceSpeed, key=ST.voceInt+":"+fnv(t.trim())+":"+sp;
+ if(!stretched.has(key)){
+  const pr=loadRaw(t).then(b=>stretch(b,sp)); pr.catch(()=>stretched.delete(key));
+  stretched.set(key,pr); if(stretched.size>80) stretched.delete(stretched.keys().next().value);
+ }
+ return stretched.get(key);
 }
 function prefetch(){
  if(!P.on||!P.cfg) return;
  for(let k=1;k<=2;k++){ const st=P.cfg.steps[P.i+k]; if(st&&st.t&&!st.b&&!st.silent) load(st.t).catch(()=>{}); }
 }
 
-/* ---------- lettore: elemento audio con velocità che conserva il timbro ---------- */
-const el=new Audio(); el.preload="auto"; el.preservesPitch=true; el.mozPreservesPitch=true; el.webkitPreservesPitch=true;
-let routed=false, gen=0, safety=null, pending=null;
-function route(){
- if(routed||!A.ctx) return; routed=true;
- try{
-  const src=A.ctx.createMediaElementSource(el);
-  const out=A.ctx.createGain(); out.gain.value=1; src.connect(out); out.connect(A.master);
-  const send=A.ctx.createGain(); send.gain.value=.1; out.connect(send); send.connect(A.reverb2||A.reverb);
- }catch(e){}
+/* ---------- uscita audio: voce + leggero riverbero, musica che si abbassa ---------- */
+let out=null, cur=null, gen=0, safety=null;
+function ensureOut(){
+ if(out||!A.ctx) return;
+ out=A.ctx.createGain(); out.gain.value=1; out.connect(A.master);
+ const send=A.ctx.createGain(); send.gain.value=.1; out.connect(send); send.connect(A.reverb2||A.reverb);
 }
 function duck(on){
  if(!A.music||A.sleepEnd) return;
  A.music.gain.setTargetAtTime(on?ST.vol*.6:ST.vol, A.ctx.currentTime, on?.25:.8);
 }
-function stopCur(){ clearTimeout(safety); el.onended=null; el.onerror=null; try{ el.pause(); }catch(e){} duck(false); }
-// sblocca la riproduzione al primo tocco (necessario sui telefoni)
-const SILENZIO=(()=>{ const n=800,b=new ArrayBuffer(44+n*2),d=new DataView(b),w=(o,t)=>{for(let i=0;i<t.length;i++)d.setUint8(o+i,t.charCodeAt(i));};
- w(0,"RIFF");d.setUint32(4,36+n*2,true);w(8,"WAVEfmt ");d.setUint32(16,16,true);d.setUint16(20,1,true);d.setUint16(22,1,true);d.setUint32(24,8000,true);d.setUint32(28,16000,true);d.setUint16(32,2,true);d.setUint16(34,16,true);w(36,"data");d.setUint32(40,n*2,true);
- return URL.createObjectURL(new Blob([b],{type:"audio/wav"})); })();
-let unlocked=false;
-function unlock(){ if(unlocked) return; unlocked=true; A.init(); route(); try{ el.src=SILENZIO; const p=el.play(); if(p&&p.catch) p.catch(()=>{ unlocked=false; }); }catch(e){ unlocked=false; } }
-document.addEventListener("click",unlock,true);
-document.addEventListener("touchend",unlock,true);
+function stopCur(){ clearTimeout(safety); if(cur){ cur.onended=null; try{cur.stop()}catch(e){} cur=null; duck(false); } }
+document.addEventListener("click",()=>A.init(),true);
+document.addEventListener("touchend",()=>A.init(),true);
 
 const estimate = t => Math.max(1800, t.split(/\s+/).length*430/ST.voceSpeed);
 V.hasTTS = false;
-V.stop = function(){ gen++; pending=null; stopCur(); };
+V.stop = function(){ gen++; stopCur(); };
 V.pick = function(){ return null; };
 V.speak = function(text,cb){
  const my=++gen; stopCur();
  let done=false; const fin=()=>{ if(!done&&my===gen){ done=true; duck(false); cb&&cb(); } };
  if(!ST.voice){ setTimeout(fin,estimate(text)); return; }
- A.init(); route();
- load(text).then(url=>{
+ A.init(); if(!A.ctx){ setTimeout(fin,estimate(text)); return; }
+ ensureOut();
+ load(text).then(buf=>{
   if(my!==gen) return;
-  el.onended=fin; el.onerror=()=>setTimeout(fin,estimate(text));
-  el.src=url; el.playbackRate=ST.voceSpeed; el.defaultPlaybackRate=ST.voceSpeed;
-  const p=el.play(); duck(true);
-  if(p&&p.catch) p.catch(()=>setTimeout(fin,estimate(text)));
-  el.onloadedmetadata=()=>{ clearTimeout(safety); safety=setTimeout(fin,(el.duration/ST.voceSpeed)*1000+3000); };
-  safety=setTimeout(fin,estimate(text)*2+4000);
+  const src=A.ctx.createBufferSource(); src.buffer=buf; src.connect(out);
+  src.onended=()=>{ if(cur===src) cur=null; fin(); };
+  cur=src; duck(true); src.start();
+  safety=setTimeout(fin, buf.duration*1000+2500);
   prefetch();
  }).catch(()=>{ if(my===gen) setTimeout(fin,estimate(text)); });
 };
@@ -119,7 +138,7 @@ const SPEEDS=[[0.8,"Molto lenta"],[0.9,"Lenta"],[1,"Normale"],[1.1,"Veloce"],[1.
 function ui(){
  const c=ST.voceInt;
  return `<h3 style="margin-bottom:4px">Voce</h3>
-  <p class="muted small" style="margin-bottom:12px">Voci integrate nell'app: suonano uguali su ogni dispositivo.</p>
+  <p class="muted small" style="margin-bottom:12px">Voci integrate nell'app: suonano uguali su ogni dispositivo. <span style="opacity:.6">(v4)</span></p>
   <div class="grid2" style="grid-template-columns:repeat(auto-fill,minmax(170px,1fr))">
    ${Object.entries(VOCI).map(([id,v])=>`<div class="card preset ${c===id?"on":""}" data-iact="voce" data-id="${id}"><span class="ic">${v.icona}</span><h3>${v.nome}</h3><p>${v.desc}</p><p class="small" style="margin-top:6px;color:var(--accent)">${v.g}</p></div>`).join("")}
   </div>
@@ -139,8 +158,7 @@ renderTu=function(){
 };
 function setSpeed(v){
  ST.voceSpeed=Math.round(v*100)/100; ST.rate=0.88*ST.voceSpeed; save();
- el.playbackRate=ST.voceSpeed;
-}
+ }
 document.addEventListener("click",e=>{
  const b=e.target.closest("[data-iact]"); if(!b) return;
  if(b.dataset.iact==="voce"){ ST.voceInt=b.dataset.id; save(); renderTu(); test(); }
@@ -156,7 +174,7 @@ function test(){ const old=ST.voice; ST.voice=true; V.speak("Trova una posizione
 
 /* nome della voce anche nel player */
 const _open=openPlayer;
-openPlayer=function(cfg){ unlock(); _open(cfg); const b=document.getElementById("plVoice"); if(b) b.title="Voce: "+VOCI[ST.voceInt].nome; };
+openPlayer=function(cfg){ _open(cfg); const b=document.getElementById("plVoice"); if(b) b.title="Voce: "+VOCI[ST.voceInt].nome; };
 
 try{ if(document.getElementById("view-tu").classList.contains("on")) renderTu(); }catch(e){}
 })();
