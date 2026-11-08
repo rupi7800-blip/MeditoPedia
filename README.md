@@ -15,13 +15,11 @@ Web app di meditazione in un singolo file (`index.html`), pronta per GitHub Page
 ## File
 - `index.html` — l'app
 - `sessioni-extra.js` — 120 sessioni lunghe (8 per programma, escluso Base: 4 da 12-17 min e 4 da 20-30 min)
-- `voci.js` — 4 maestri (2 donne, 2 uomini) con le voci del dispositivo
-- `voce-integrata.js` + cartella `audio/` — voci integrate Paola (donna) e Riccardo (uomo), pre-registrate: uguali per tutti, senza installare niente
+- `voce-integrata.js` + cartella `audio/` — voci integrate Paola (donna) e Riccardo (uomo), pre-registrate: uguali per tutti, senza installare niente. Velocità regolabile dal 70% al 130% senza alterare il timbro. Le voci di sistema non sono usate
 
 I due file `.js` vanno nella stessa cartella di `index.html`, che li carica con queste righe prima di `</body>`:
 ```html
 <script src="sessioni-extra.js"></script>
-<script src="voci.js"></script>
 <script src="voce-integrata.js"></script>
 ```
 
@@ -38,4 +36,4 @@ I due file `.js` vanno nella stessa cartella di `index.html`, che li carica con 
 ## Voci integrate
 Le frasi sono state sintetizzate con [Piper](https://github.com/rhasspy/piper) (voci italiane gratuite *paola-medium* e *riccardo-x_low*).
 Ogni voce ha `audio/<voce>/indice.json` e un pacchetto `.bin` per programma: l'app scarica solo quello che serve.
-Se modifichi il testo di una frase, quella frase non avrà più l'audio e verrà letta con la voce del dispositivo, finché non rigeneri gli audio.
+Se modifichi il testo di una frase, quella frase non avrà più l'audio e verrà solo mostrata a schermo, finché non rigeneri gli audio.
