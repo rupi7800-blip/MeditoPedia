@@ -119,11 +119,16 @@ nav.bottom button.on{color:var(--accent)} nav.bottom button.on span{filter:none}
 #orbLabel{font-family:var(--serif);font-size:1.3rem;color:#0d1320;font-weight:500;text-shadow:0 0 12px #fff8}
 #orbCount{font-size:1.9rem;font-weight:600;color:#0d1320}
 #plText{font-family:var(--serif);font-weight:300;font-size:clamp(1.15rem,3.6vw,1.6rem);line-height:1.4;max-width:620px;min-height:4.5em;transition:opacity .6s}
-.pl-bottom{padding:10px 24px 22px;max-width:620px;width:100%;margin:0 auto}
+.pl-bottom{padding:10px 24px calc(30px + env(safe-area-inset-bottom));max-width:620px;width:100%;margin:0 auto}
+#plPausedTag{opacity:0;transition:opacity .3s;margin-bottom:14px;padding:6px 14px;border-radius:99px;background:#ffffff14;font-size:.85rem;color:var(--text)}
+#player.is-paused #plPausedTag{opacity:1}
+#player.is-paused #plText{opacity:.5!important}
+.stopbtn{font-size:1.2rem}
+.pl-ctrl button{touch-action:manipulation}
 .bar{height:4px;border-radius:9px;background:#ffffff1c;overflow:hidden}
 .bar i{display:block;height:100%;width:0;background:var(--pc);transition:width .5s linear}
 .pl-time{display:flex;justify-content:space-between;font-size:.78rem;color:var(--muted);margin-top:6px}
-.pl-ctrl{display:flex;justify-content:center;align-items:center;gap:26px;margin-top:12px}
+.pl-ctrl{display:flex;justify-content:center;align-items:center;gap:22px;margin-top:12px;position:relative;z-index:2}
 .big{width:72px;height:72px;border-radius:50%;background:var(--pc);color:#0d1320;font-size:1.5rem;display:grid;place-items:center;box-shadow:0 8px 30px color-mix(in srgb,var(--pc) 40%,transparent)}
 #plDone{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px;background:#0a0f1af2;gap:14px}
 #plDone.on{display:flex}
@@ -240,7 +245,8 @@ footer{padding:30px 0 10px;text-align:center;font-size:.75rem;color:var(--muted)
     <select id="plBg" title="Sottofondo"></select>
   </div>
   <div class="pl-center">
-    <div class="orb-wrap"><div class="orb idle" id="orb"><span id="orbLabel"></span><span id="orbCount"></span></div></div>
+    <div id="plPausedTag">⏸ In pausa · tocca ▶ per continuare</div>
+    <div class="orb-wrap" data-act="plplay" style="cursor:pointer"><div class="orb idle" id="orb"><span id="orbLabel"></span><span id="orbCount"></span></div></div>
     <p id="plText"></p>
   </div>
   <div class="pl-bottom">
@@ -248,8 +254,9 @@ footer{padding:30px 0 10px;text-align:center;font-size:.75rem;color:var(--muted)
     <div class="pl-time"><span id="plEl">0:00</span><span id="plRem"></span></div>
     <div class="pl-ctrl">
       <button class="icbtn" data-act="plvoice" id="plVoice" title="Voce">🗣️</button>
-      <button class="big" data-act="plplay" id="plPlay">❚❚</button>
-      <button class="icbtn" data-act="plskip" title="Avanti">⏭</button>
+      <button class="icbtn stopbtn" data-act="plstop" title="Stop" aria-label="Stop">■</button>
+      <button class="big" data-act="plplay" id="plPlay" aria-label="Pausa">❚❚</button>
+      <button class="icbtn" data-act="plskip" title="Avanti" aria-label="Avanti">⏭</button>
     </div>
   </div>
   <div id="plDone">
@@ -1087,18 +1094,23 @@ function runBreath(st,tok){
  };
  P.timer=setTimeout(next,1200);
 }
+function freezeOrb(){ const o=$("#orb"); const t=getComputedStyle(o).transform; o.style.transitionDuration="0s"; if(t&&t!=="none") o.style.transform=t; }
+function setPausedUI(on){ $("#plPlay").textContent=on?"▶":"❚❚"; $("#orb").classList.toggle("paused",on); $("#player").classList.toggle("is-paused",on); }
+function resumeAudio(){ try{ if(A.ctx&&A.ctx.state!=="running") A.ctx.resume(); }catch(e){} }
 function togglePause(){
  if(!P.on||P.finished) return;
  if(!P.paused){
   P.paused=true; P.token++; clearTimeout(P.timer); V.stop();
   if(P.phase==="pause") P.remain=Math.max(0,P.pauseEnd-Date.now());
-  $("#plPlay").textContent="▶"; $("#orb").classList.add("paused");
+  freezeOrb(); setPausedUI(true);
+  try{ if(A.ctx) A.ctx.suspend(); }catch(e){}   // ferma anche musica e suoni
  } else {
-  P.paused=false; $("#plPlay").textContent="❚❚"; $("#orb").classList.remove("paused");
+  P.paused=false; setPausedUI(false); resumeAudio();
   if(P.phase==="pause") waitPause(P.remain); else runStep();
  }
 }
-function skip(){ if(!P.on||P.finished) return; P.token++; clearTimeout(P.timer); V.stop(); P.i++; if(P.paused){ P.paused=false; $("#plPlay").textContent="❚❚"; } runStep(); }
+function skip(){ if(!P.on||P.finished) return; P.token++; clearTimeout(P.timer); V.stop(); P.i++; if(P.paused){ P.paused=false; setPausedUI(false); resumeAudio(); } runStep(); }
+function stopSession(){ if(!P.on) return; resumeAudio(); setPausedUI(false); closePlayer(); stopMusic(); toast("Sessione interrotta"); }
 function record(full){
  const min=Math.round(P.elapsed/60*10)/10; if(min<1&&!full) return;
  ST.minutes=Math.round((ST.minutes+min)*10)/10; ST.sessions++;
@@ -1123,6 +1135,7 @@ function finish(){
 }
 function closePlayer(silent){
  if(!P.on) return;
+ resumeAudio(); $("#player").classList.remove("is-paused");
  if(!P.finished){ record(false); }
  P.on=false; P.token++; clearTimeout(P.timer); clearInterval(P.tick); V.stop(); keepAwake(false);
  $("#player").classList.remove("on"); document.body.style.overflow="";
@@ -1309,6 +1322,7 @@ document.addEventListener("click",e=>{
   case "plclose": closePlayer(); break;
   case "plplay": togglePause(); break;
   case "plskip": skip(); break;
+  case "plstop": stopSession(); break;
   case "plvoice": ST.voice=!ST.voice; save(); el.style.opacity=ST.voice?1:.4; if(!ST.voice) V.stop(); toast(ST.voice?"Voce attiva":"Voce disattivata · solo testo"); break;
   case "pldone": closePlayer(); break;
   case "togglevoice": ST.voice=!ST.voice; save(); renderTu(); break;
