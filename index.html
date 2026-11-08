@@ -830,13 +830,21 @@ const A = {
  init(){
   if(this.ctx){ if(this.ctx.state==="suspended") this.ctx.resume(); return; }
   const C = window.AudioContext||window.webkitAudioContext; if(!C) return;
-  const c = this.ctx = new C();
-  this.master = c.createGain(); this.master.gain.value = 1; this.master.connect(c.destination);
+  // "playback": buffer audio più ampio, evita crepitii sui telefoni
+  let c; try{ c = new C({latencyHint:"playback"}); }catch(e){ c = new C(); }
+  this.ctx = c;
+  // limitatore finale: impedisce la saturazione quando musica e voce si sommano
+  const lim = c.createDynamicsCompressor();
+  lim.threshold.value = -10; lim.knee.value = 8; lim.ratio.value = 12; lim.attack.value = .003; lim.release.value = .25;
+  lim.connect(c.destination);
+  this.master = c.createGain(); this.master.gain.value = .8; this.master.connect(lim);
   this.music = c.createGain(); this.music.gain.value = ST.vol; this.music.connect(this.master);
   this.fx = c.createGain(); this.fx.gain.value = .55; this.fx.connect(this.master);
-  this.reverb = c.createConvolver(); this.reverb.buffer = this.impulse(4.5);
+  // un solo riverbero, più corto: molto più leggero per il processore
+  this.reverb = c.createConvolver(); this.reverb.buffer = this.impulse(2.6);
   this.reverb.connect(this.music);
-  this.fxRev = c.createGain(); this.fxRev.gain.value=.5; this.fxRev.connect(this.reverb2 = c.createConvolver()); this.reverb2.buffer=this.reverb.buffer; this.reverb2.connect(this.fx);
+  this.reverb2 = this.reverb;
+  this.fxRev = c.createGain(); this.fxRev.gain.value=.5; this.fxRev.connect(this.reverb);
   this.noise = {white:this.noiseBuf("white"), pink:this.noiseBuf("pink"), brown:this.noiseBuf("brown")};
  },
  impulse(sec){const c=this.ctx,len=Math.floor(c.sampleRate*sec),b=c.createBuffer(2,len,c.sampleRate);
