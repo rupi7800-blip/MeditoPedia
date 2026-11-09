@@ -18,10 +18,16 @@
 "use strict";
 const BASE = "audio/";
 const VOCI = {
- paola:    {nome:"Paola",    icona:"🌸", g:"♀ Donna", desc:"Voce femminile calma e chiara"},
- riccardo: {nome:"Riccardo", icona:"🍃", g:"♂ Uomo",  desc:"Voce maschile pacata"}
+ sara:     {nome:"Sara",     icona:"🌸", g:"♀ Donna", desc:"Voce femminile calda e naturale (Kokoro)"},
+ nicola:   {nome:"Nicola",   icona:"🍃", g:"♂ Uomo",  desc:"Voce maschile pacata (Kokoro)"},
+ paola:    {nome:"Paola",    icona:"🌷", g:"♀ Donna", desc:"Voce precedente", vecchia:true},
+ riccardo: {nome:"Riccardo", icona:"🌿", g:"♂ Uomo",  desc:"Voce precedente", vecchia:true}
 };
-if(!VOCI[ST.voceInt]) ST.voceInt="paola";
+// passaggio unico alle voci Kokoro (si può tornare alle precedenti dalle impostazioni)
+if(!ST.voceKokoro){ ST.voceKokoro=true; ST.voceInt = ST.voceInt==="riccardo" ? "nicola" : "sara"; }
+// nell'app Android sono incluse solo le voci Kokoro
+if(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform()){ delete VOCI.paola; delete VOCI.riccardo; }
+if(!VOCI[ST.voceInt]) ST.voceInt="sara";
 if(!(ST.voceSpeed>=0.6&&ST.voceSpeed<=1.4)) ST.voceSpeed=1;
 ST.rate=0.88*ST.voceSpeed;   // le durate stimate seguono la velocità scelta
 save();
@@ -140,7 +146,11 @@ function ui(){
  return `<h3 style="margin-bottom:4px">Voce</h3>
   <p class="muted small" style="margin-bottom:12px">Voci integrate nell'app: suonano uguali su ogni dispositivo. <span style="opacity:.6">(v4)</span></p>
   <div class="grid2" style="grid-template-columns:repeat(auto-fill,minmax(170px,1fr))">
-   ${Object.entries(VOCI).map(([id,v])=>`<div class="card preset ${c===id?"on":""}" data-iact="voce" data-id="${id}"><span class="ic">${v.icona}</span><h3>${v.nome}</h3><p>${v.desc}</p><p class="small" style="margin-top:6px;color:var(--accent)">${v.g}</p></div>`).join("")}
+   ${Object.entries(VOCI).filter(([,v])=>!v.vecchia).map(([id,v])=>`<div class="card preset ${c===id?"on":""}" data-iact="voce" data-id="${id}"><span class="ic">${v.icona}</span><h3>${v.nome}</h3><p>${v.desc}</p><p class="small" style="margin-top:6px;color:var(--accent)">${v.g}</p></div>`).join("")}
+  </div>
+  ${Object.values(VOCI).some(v=>v.vecchia)?`<p class="muted small" style="margin:12px 0 6px">Voci precedenti</p>`:""}
+  <div class="grid2" style="grid-template-columns:repeat(auto-fill,minmax(170px,1fr))">
+   ${Object.entries(VOCI).filter(([,v])=>v.vecchia).map(([id,v])=>`<div class="card preset ${c===id?"on":""}" style="padding:10px 14px" data-iact="voce" data-id="${id}"><h3 style="font-size:.95rem">${v.icona} ${v.nome} <span class="muted small">${v.g}</span></h3></div>`).join("")}
   </div>
   <h3 style="margin:18px 0 6px">Velocità della voce <span class="muted small" id="spdLab">· ${Math.round(ST.voceSpeed*100)}%</span></h3>
   <input type="range" id="voceSpeed" min="0.7" max="1.3" step="0.05" value="${ST.voceSpeed}" style="width:100%">

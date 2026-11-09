@@ -61,7 +61,7 @@ function bloccoOffline(){
   if (nativa) return `<div class="set" style="display:block"><h3>Uso offline</h3><p class="muted small" style="margin-top:4px">Nell'app Android tutti gli audio sono già inclusi.</p></div>`;
   const fatto = ST.offline && ST.offline[ST.voceInt];
   return `<div class="set" style="display:block"><h3>Uso offline</h3>
-   <p class="muted small" style="margin:4px 0 10px">Scarica tutte le meditazioni della voce scelta (circa 28 MB) per usarle senza connessione.</p>
+   <p class="muted small" style="margin:4px 0 10px">Scarica tutte le meditazioni della voce scelta (circa 45 MB) per usarle senza connessione.</p>
    <button class="btn sm ghost" data-pact="offline">⬇️ Scarica audio</button> <span class="small muted" id="offLab">${fatto?"✓ Già scaricati":""}</span></div>`;
 }
 

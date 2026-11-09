@@ -37,7 +37,7 @@ jobs:
           mkdir -p build/www
           cp index.html *.js *.json manifest.webmanifest build/www/
           rm -f build/www/sw.js
-          cp -r icone audio build/www/
+          mkdir -p build/www/audio && cp -r icone build/www/ && cp -r audio/sara audio/nicola build/www/audio/
 
       - name: Crea il progetto Android (Capacitor)
         working-directory: build

@@ -1,11 +1,11 @@
 /* MeditoPedia — service worker: app offline e audio in cache */
-const VERSIONE = "mp-v7";
+const VERSIONE = "mp-v8";
 const SHELL = "shell-" + VERSIONE;
 const AUDIO = "audio-v1";          // gli audio non cambiano tra le versioni dell'app
 const FILE_BASE = [
-  "./", "./index.html", "./sessioni-extra.js?v=4", "./umore.js?v=1", "./aggiorna.js?v=3", "./voce-integrata.js?v=4", "./pwa.js?v=1",
+  "./", "./index.html", "./sessioni-extra.js?v=4", "./umore.js?v=1", "./aggiorna.js?v=4", "./crediti.js?v=1", "./voce-integrata.js?v=5", "./pwa.js?v=2",
   "./manifest.webmanifest", "./icone/icona-192.png", "./icone/icona-512.png", "./icone/apple-touch-icon.png",
-  "./audio/paola/indice.json", "./audio/riccardo/indice.json"
+  "./audio/sara/indice.json", "./audio/nicola/indice.json", "./audio/paola/indice.json", "./audio/riccardo/indice.json"
 ];
 
 self.addEventListener("install", e => {

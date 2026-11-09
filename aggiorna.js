@@ -8,8 +8,8 @@
    ========================================================= */
 (function(){
 "use strict";
-const APP_BUILD = 3;
-const APP_VERSIONE = "1.3";
+const APP_BUILD = 4;
+const APP_VERSIONE = "1.4";
 const SITO = "https://rupi7800-blip.github.io/meditopedia/";
 const APK = "https://github.com/rupi7800-blip/meditopedia/releases/download/android-latest/MeditoPedia.apk";
 const nativa = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
