@@ -1,0 +1,50 @@
+# Genera le voci Kokoro (Sara e Nicola) per tutte le frasi dell'app
+# e le salva nella cartella audio/ dello stesso ramo.
+# Si avvia caricando su un ramo che inizia con "genera-voci".
+name: Voci Kokoro
+
+on:
+  push:
+    branches: ["genera-voci**"]
+    paths: ["strumenti/**", ".github/workflows/voci-kokoro.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  genera:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Installa Kokoro
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq espeak-ng ffmpeg
+          pip install -q torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -q "kokoro>=0.9.4" "misaki[en]" phonemizer-fork espeakng-loader soundfile numpy
+
+      - name: Prova veloce
+        run: |
+          python - <<'EOF'
+          from kokoro import KPipeline
+          p = KPipeline(lang_code="i", repo_id="hexgrad/Kokoro-82M")
+          for _, ps, a in p("Trova una posizione comoda, e chiudi gli occhi.", voice="if_sara", speed=0.88):
+              print("fonemi:", ps, "campioni:", len(a))
+          EOF
+
+      - name: Genera Sara e Nicola
+        run: python strumenti/genera_kokoro.py sara nicola
+
+      - name: Salva gli audio nel ramo
+        run: |
+          git config user.name "rupi7800-blip"
+          git config user.email "rupi7800-blip@users.noreply.github.com"
+          git add audio/sara audio/nicola
+          git commit -m "Voci Kokoro Sara e Nicola generate automaticamente" || echo "niente da salvare"
+          git push
