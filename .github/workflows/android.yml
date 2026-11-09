@@ -35,7 +35,7 @@ jobs:
       - name: Prepara i file dell'app
         run: |
           mkdir -p build/www
-          cp index.html *.js manifest.webmanifest build/www/
+          cp index.html *.js *.json manifest.webmanifest build/www/
           rm -f build/www/sw.js
           cp -r icone audio build/www/
 
@@ -43,7 +43,7 @@ jobs:
         working-directory: build
         run: |
           npm init -y > /dev/null
-          npm i @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7 @capacitor/assets@3
+          npm i @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7 @capacitor/assets@3 @capacitor/local-notifications@7 @capacitor/app@7
           npx cap init MeditoPedia it.meditopedia.app --web-dir www
           npx cap add android
           mkdir -p assets
@@ -52,7 +52,8 @@ jobs:
           python3 -c "from PIL import Image" 2>/dev/null || pip install pillow
           python3 -c "from PIL import Image; Image.new('RGB',(1024,1024),(13,19,32)).save('assets/icon-background.png'); Image.new('RGB',(2732,2732),(13,19,32)).save('assets/splash.png'); Image.new('RGB',(2732,2732),(13,19,32)).save('assets/splash-dark.png')"
           npx capacitor-assets generate --android --iconBackgroundColor '#0d1320' --iconBackgroundColorDark '#0d1320' --splashBackgroundColor '#0d1320' --splashBackgroundColorDark '#0d1320'
-          sed -i "s/versionCode 1/versionCode ${{ github.run_number }}/; s/versionName \"1.0\"/versionName \"1.${{ github.run_number }}\"/" android/app/build.gradle
+          VN=$(python3 -c "import json;print(json.load(open('www/version.json'))['versione'])")
+          sed -i "s/versionCode 1/versionCode ${{ github.run_number }}/; s/versionName \"1.0\"/versionName \"$VN\"/" android/app/build.gradle
           npx cap sync android
 
       - name: Compila l'APK
@@ -75,6 +76,6 @@ jobs:
         run: |
           gh release delete android-latest --yes --cleanup-tag || true
           gh release create android-latest MeditoPedia.apk \
-            --title "MeditoPedia per Android (1.${{ github.run_number }})" \
+            --title "MeditoPedia per Android ($(python3 -c "import json;print(json.load(open('version.json'))['versione'])"))" \
             --notes "Scarica **MeditoPedia.apk**, aprilo sul telefono e consenti l'installazione quando Android lo chiede. Gli aggiornamenti si installano sopra la versione precedente senza perdere i progressi." \
             --latest

@@ -1,9 +1,9 @@
 /* MeditoPedia — service worker: app offline e audio in cache */
-const VERSIONE = "mp-v6";
+const VERSIONE = "mp-v7";
 const SHELL = "shell-" + VERSIONE;
 const AUDIO = "audio-v1";          // gli audio non cambiano tra le versioni dell'app
 const FILE_BASE = [
-  "./", "./index.html", "./sessioni-extra.js?v=4", "./umore.js?v=1", "./voce-integrata.js?v=4", "./pwa.js?v=1",
+  "./", "./index.html", "./sessioni-extra.js?v=4", "./umore.js?v=1", "./aggiorna.js?v=3", "./voce-integrata.js?v=4", "./pwa.js?v=1",
   "./manifest.webmanifest", "./icone/icona-192.png", "./icone/icona-512.png", "./icone/apple-touch-icon.png",
   "./audio/paola/indice.json", "./audio/riccardo/indice.json"
 ];
@@ -37,7 +37,7 @@ self.addEventListener("fetch", e => {
   }
   if (url.origin !== location.origin) return;
   // pagina, script e indici: prima la rete (aggiornamenti subito), poi la cache se offline
-  e.respondWith(fetch(req).then(res => {
+  e.respondWith(fetch(req, {cache: "no-cache"}).then(res => {
     if (res.ok) caches.open(SHELL).then(c => c.put(req, res.clone()));
     return res;
   }).catch(async () => (await caches.match(req, {ignoreSearch: false})) || (await caches.match(req, {ignoreSearch: true})) || caches.match("./index.html")));
@@ -58,4 +58,32 @@ self.addEventListener("message", async e => {
     }
     port.postMessage({fine: true});
   } catch (err) { port.postMessage({errore: String(err)}); }
+});
+
+/* ---------- aggiornamenti: notifica anche ad app chiusa (Chrome Android, app installata) ---------- */
+const META = "meta";
+async function leggi(k){ const r = await (await caches.open(META)).match("/__" + k); return r ? r.json() : null; }
+async function scrivi(k, v){ await (await caches.open(META)).put("/__" + k, new Response(JSON.stringify(v))); }
+self.addEventListener("message", e => {
+  if (e.data && e.data.tipo === "versione") { scrivi("build", e.data.build); scrivi("notifiche", e.data.notifiche); }
+});
+async function controllaAggiornamenti(){
+  const [build, notifiche, notificato] = await Promise.all([leggi("build"), leggi("notifiche"), leggi("notificato")]);
+  if (!notifiche || !build) return;
+  const v = await (await fetch("./version.json?t=" + Date.now(), {cache: "no-store"})).json();
+  if (v.build > build && v.build !== notificato) {
+    await self.registration.showNotification("MeditoPedia " + v.versione + " è disponibile", {
+      body: (v.novita || []).slice(0, 2).join(" · ") || "Tocca per aggiornare l'app",
+      icon: "icone/icona-192.png", badge: "icone/icona-192.png", tag: "aggiornamento", data: {url: "./"}
+    });
+    await scrivi("notificato", v.build);
+  }
+}
+self.addEventListener("periodicsync", e => { if (e.tag === "controlla-aggiornamenti") e.waitUntil(controllaAggiornamenti()); });
+self.addEventListener("notificationclick", e => {
+  e.notification.close();
+  e.waitUntil(self.clients.matchAll({type: "window", includeUncontrolled: true}).then(list => {
+    for (const c of list) { if ("focus" in c) return c.focus(); }
+    return self.clients.openWindow((e.notification.data && e.notification.data.url) || "./");
+  }));
 });
