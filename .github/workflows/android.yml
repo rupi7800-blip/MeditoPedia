@@ -6,7 +6,7 @@ name: APK Android
 on:
   push:
     branches: [main]
-  workflow_dispatch:
+  workflow_dispatch:   # su altri rami: APK di prova come artefatto, la release non viene toccata
 
 permissions:
   contents: write
@@ -36,6 +36,7 @@ jobs:
         run: |
           mkdir -p build/www
           cp index.html *.js *.json manifest.webmanifest build/www/
+          cp -r js css build/www/
           rm -f build/www/sw.js
           mkdir -p build/www/audio && cp -r icone build/www/ && cp -r audio/sara audio/nicola build/www/audio/
 
@@ -54,6 +55,7 @@ jobs:
           npx capacitor-assets generate --android --iconBackgroundColor '#0d1320' --iconBackgroundColorDark '#0d1320' --splashBackgroundColor '#0d1320' --splashBackgroundColorDark '#0d1320'
           VN=$(python3 -c "import json;print(json.load(open('www/version.json'))['versione'])")
           sed -i "s/versionCode 1/versionCode ${{ github.run_number }}/; s/versionName \"1.0\"/versionName \"$VN\"/" android/app/build.gradle
+          python3 ../android-nativo/prepara_android.py
           npx cap sync android
 
       - name: Compila l'APK
@@ -70,7 +72,15 @@ jobs:
           $BT/apksigner sign --ks android-firma/meditopedia.jks --ks-key-alias meditopedia --ks-pass env:KEY_PASS --key-pass env:KEY_PASS --out MeditoPedia.apk aligned.apk
           $BT/apksigner verify MeditoPedia.apk
 
+      - name: APK di prova (rami diversi da main)
+        if: github.ref != 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: MeditoPedia-apk-prova
+          path: MeditoPedia.apk
+
       - name: Pubblica nella release
+        if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

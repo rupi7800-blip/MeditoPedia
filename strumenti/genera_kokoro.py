@@ -6,7 +6,10 @@ Legge strumenti/frasi.json e scrive audio/<voce>/indice.json + un pacchetto .bin
 """
 import json, os, re, subprocess, sys, time
 import numpy as np
-from kokoro import KPipeline
+try:
+    from kokoro import KPipeline
+except ImportError:
+    KPipeline = None
 
 VOCI = {"sara": "if_sara", "nicola": "im_nicola"}
 SR = 24000

@@ -220,19 +220,19 @@ function trova(ref){
 /* ---------- interfaccia ---------- */
 const css=document.createElement("style");
 css.textContent=`
-#checkin{position:fixed;inset:0;z-index:60;display:none;align-items:flex-end;justify-content:center;background:#05080fcc;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+#checkin{position:fixed;inset:0;z-index:60;display:none;align-items:flex-end;justify-content:center;background:#05080fb3;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
 #checkin.on{display:flex;animation:fade .3s}
-#checkin .box{width:100%;max-width:560px;max-height:92vh;overflow:auto;background:linear-gradient(170deg,#1c2742,#121a2b);border:1px solid var(--line);border-radius:26px 26px 0 0;padding:22px 20px calc(24px + env(safe-area-inset-bottom))}
+#checkin .box{width:100%;max-width:560px;max-height:92vh;overflow:auto;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:26px 26px 0 0;padding:22px 20px calc(24px + env(safe-area-inset-bottom))}
 @media(min-width:600px){#checkin{align-items:center}#checkin .box{border-radius:26px}}
 #checkin h2{margin:4px 0 6px;font-size:1.6rem;font-weight:300}
 .moodgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
-.moodgrid button{padding:12px 4px;border-radius:16px;background:#ffffff0d;border:1px solid var(--line);font-size:.8rem;display:flex;flex-direction:column;align-items:center;gap:4px;transition:.2s}
+.moodgrid button{padding:12px 4px;border-radius:16px;background:color-mix(in srgb,var(--text) 6%,transparent);border:1px solid var(--line);font-size:.8rem;display:flex;flex-direction:column;align-items:center;gap:4px;transition:.2s}
 .moodgrid button span{font-size:1.7rem}
-.moodgrid button:hover,.moodgrid button:active{border-color:var(--accent);background:#8fb8a822}
-.ragioni button{display:block;width:100%;text-align:left;padding:14px 16px;margin-top:8px;border-radius:14px;background:#ffffff0d;border:1px solid var(--line);font-size:.95rem}
+.moodgrid button:hover,.moodgrid button:active{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 16%,transparent)}
+.ragioni button{display:block;width:100%;text-align:left;padding:14px 16px;margin-top:8px;border-radius:14px;background:color-mix(in srgb,var(--text) 6%,transparent);border:1px solid var(--line);font-size:.95rem}
 .ragioni button:hover{border-color:var(--accent)}
 .ckin-input{display:flex;gap:8px;margin-top:14px}
-.ckin-input input{flex:1;background:#ffffff0d;border:1px solid var(--line);border-radius:99px;padding:11px 16px;outline:none}
+.ckin-input input{flex:1;background:color-mix(in srgb,var(--text) 6%,transparent);border:1px solid var(--line);border-radius:99px;padding:11px 16px;outline:none}
 .ckin-top{display:flex;justify-content:space-between;align-items:center}
 .reco{display:flex;gap:14px;align-items:center;padding:16px;margin-top:12px;cursor:pointer}
 .reco.main{border-color:var(--pc);box-shadow:0 0 0 1px var(--pc) inset}
@@ -244,7 +244,7 @@ let stato={};
 
 function apri(){ stato={}; passo1(); box.classList.add("on"); }
 function chiudi(){ box.classList.remove("on"); }
-function top(){ return `<div class="ckin-top"><span class="muted small">🌈 Il tuo momento</span><button class="icbtn" data-uact="chiudi" style="width:36px;height:36px;flex-basis:36px">✕</button></div>`; }
+function top(){ return `<div class="ckin-top"><span class="muted small">🌈 Il tuo momento</span><button class="icbtn sm" data-uact="chiudi" aria-label="Chiudi">✕</button></div>`; }
 function passo1(){
  const h=new Date().getHours();
  const q=DOMANDE[Math.floor(Math.random()*DOMANDE.length)];
@@ -281,7 +281,7 @@ document.addEventListener("click",e=>{
  if(a==="indietro") passo1();
  if(a==="motivo") passo3(+el.dataset.i);
  if(a==="avvia"){ chiudi(); if(el.dataset.k==="respiro") startBreath(el.dataset.b); else startSession(el.dataset.p,+el.dataset.i); }
- if(a==="autock"){ ST.checkinAuto=ST.checkinAuto===false; save(); renderTu(); }
+ if(a==="autock"){ ST.checkinAuto=ST.checkinAuto===false; save(); el.classList.toggle("on",ST.checkinAuto!==false); }
 });
 document.addEventListener("submit",e=>{
  if(!e.target.matches("[data-uform]")) return; e.preventDefault();
@@ -290,26 +290,18 @@ document.addEventListener("submit",e=>{
  if(id) passo2(id); else { $("#ckText").value=""; $("#ckText").placeholder="Non ho capito bene: scegli uno stato qui sopra"; }
 });
 
-/* ---------- Home e impostazioni ---------- */
-const _rh=renderHome;
-renderHome=function(){
- _rh();
- const h1=document.querySelector("#view-home h1"); if(!h1) return;
- const last=(ST.checkins||[])[0], oggi=last&&new Date(last.ts).toDateString()===new Date().toDateString();
- const html=`<div class="card hero" style="--pc:#e3a6c9;margin-top:16px" data-uact="apri"><div class="orbmini"></div><div><small class="muted">${oggi?`Prima ti sentivi ${M[last.u].e} ${M[last.u].l.toLowerCase()}`:"Meditazione su misura"}</small><h3 style="font-family:var(--serif);font-size:1.2rem;font-weight:500">${oggi?"E adesso, come stai?":"Come ti senti adesso?"}</h3><p class="muted small">Rispondi a due domande e ti propongo la meditazione giusta</p></div></div>`;
- const p=h1.nextElementSibling; (p||h1).insertAdjacentHTML("afterend",html);
-};
-const _rt=renderTu;
-renderTu=function(){
- _rt();
- const card=[...document.querySelectorAll("#view-tu .card")].find(c=>c.querySelector(".set")); if(!card) return;
- const first=card.querySelector(".set");
- first.insertAdjacentHTML("beforebegin",`<div class="set"><div><h3>Chiedimi come sto all'apertura</h3><p class="muted small">Una domanda breve e una meditazione su misura</p></div><button class="switch ${ST.checkinAuto!==false?"on":""}" data-uact="autock"></button></div>`);
- const ck=(ST.checkins||[]).slice(0,7);
- if(ck.length){
-  const h2=[...document.querySelectorAll("#view-tu h2")].find(x=>/Storico/.test(x.textContent));
-  if(h2) h2.insertAdjacentHTML("beforebegin",`<h2>Il tuo umore</h2><div class="card"><div class="row" style="gap:14px;justify-content:space-around">${ck.slice().reverse().map(c=>`<div style="text-align:center;font-size:.7rem" class="muted"><div style="font-size:1.6rem">${M[c.u]?M[c.u].e:"•"}</div>${new Date(c.ts).toLocaleDateString("it-IT",{weekday:"short"})}</div>`).join("")}</div></div>`);
- }
+/* ---------- Home e impostazioni (usati dalla nuova interfaccia) ---------- */
+window.Umore={
+ apri,
+ cardHome(){
+  const last=(ST.checkins||[])[0], oggi=last&&new Date(last.ts).toDateString()===new Date().toDateString();
+  return `<button class="card riga" style="--pc:#e3a6c9;margin-top:16px;width:100%" data-uact="apri"><span class="badge-ic"><span class="emo">${oggi&&M[last.u]?M[last.u].e:"🌈"}</span></span><div class="t"><small class="muted">${oggi&&M[last.u]?`Prima ti sentivi ${M[last.u].l.toLowerCase()}`:"Meditazione su misura"}</small><h3>${oggi?"E adesso, come stai?":"Come ti senti adesso?"}</h3><p>Due domande e ti propongo la pratica giusta</p></div></button>`;
+ },
+ storico(){
+  const ck=(ST.checkins||[]).slice(0,7); if(!ck.length) return "";
+  return `<h2>Il tuo umore</h2><div class="card"><div class="row" style="gap:14px;justify-content:space-around">${ck.slice().reverse().map(c=>`<div style="text-align:center;font-size:.7rem" class="muted"><div style="font-size:1.6rem">${M[c.u]?M[c.u].e:"•"}</div>${new Date(c.ts).toLocaleDateString("it-IT",{weekday:"short"})}</div>`).join("")}</div></div>`;
+ },
+ impostazione(){ return `<div class="set"><div><h3>Chiedimi come sto all'apertura</h3><p class="muted small">Una domanda breve e una meditazione su misura</p></div><button class="switch ${ST.checkinAuto!==false?"on":""}" data-uact="autock"></button></div>`; }
 };
 
 /* ---------- domanda all'apertura ---------- */
@@ -318,5 +310,4 @@ setTimeout(()=>{
  if(ST.lastCheckin&&Date.now()-ST.lastCheckin<3*3600*1000) return;
  apri();
 },700);
-try{ refresh(); }catch(e){}
 })();
