@@ -33,7 +33,7 @@ function bloccoInstalla(compatto){
   const btn = prompt ? `<button class="btn sm" data-pact="installa">📲 Installa l'app</button>` : `<button class="btn sm" data-pact="aiuto">📲 Come installare</button>`;
   const apk = !ios ? `<a class="btn sm ghost" href="${APK}" style="text-decoration:none">🤖 Scarica APK Android</a>` : "";
   return `<div class="card" style="margin-top:${compatto?14:0}px;display:flex;gap:14px;align-items:center;flex-wrap:wrap">
-    <img src="icone/icona-192.png" alt="" style="width:52px;height:52px;border-radius:14px">
+    <img src="icone/icona-192.png" alt="" style="width:48px;height:48px;border-radius:14px">
     <div style="flex:1;min-width:170px"><h3>MeditoPedia come app</h3><p class="muted small">Icona sulla Home, schermo intero e uso offline.</p></div>
     <div class="row">${btn}${apk}</div>
     <div id="pwaHelp" class="hidden small" style="width:100%;line-height:1.6;margin-top:4px">${testoAiuto()}</div>
@@ -55,30 +55,23 @@ async function scaricaAudio(){
     if (d.errore) lab.textContent = "Download non riuscito: controlla la connessione.";
     else if (d.fine) { lab.textContent = "✓ Audio della voce scaricati: le meditazioni funzionano anche offline."; ST.offline = ST.offline || {}; ST.offline[ST.voceInt] = true; save(); }
     else lab.textContent = `Download in corso… ${d.fatti}/${d.totale}`; };
-  reg.active.postMessage({tipo: "scarica", voce: ST.voceInt || "paola"}, [ch.port2]);
+  reg.active.postMessage({tipo: "scarica", voce: ST.voceInt || "sara"}, [ch.port2]);
 }
 function bloccoOffline(){
   if (nativa) return `<div class="set" style="display:block"><h3>Uso offline</h3><p class="muted small" style="margin-top:4px">Nell'app Android tutti gli audio sono già inclusi.</p></div>`;
   const fatto = ST.offline && ST.offline[ST.voceInt];
   return `<div class="set" style="display:block"><h3>Uso offline</h3>
-   <p class="muted small" style="margin:4px 0 10px">Scarica tutte le meditazioni della voce scelta (circa 45 MB) per usarle senza connessione.</p>
-   <button class="btn sm ghost" data-pact="offline">⬇️ Scarica audio</button> <span class="small muted" id="offLab">${fatto?"✓ Già scaricati":""}</span></div>`;
+   <p class="muted small" style="margin:4px 0 10px">Scarica tutte le frasi della voce scelta (circa 55 MB) per usare le meditazioni senza connessione. Musiche e suoni funzionano sempre offline.</p>
+   <button class="btn sm ghost" data-pact="offline">Scarica audio</button> <span class="small muted" id="offLab">${fatto?"✓ Già scaricati":""}</span></div>`;
 }
 
-/* inserimento nelle schermate */
-const _rh = renderHome;
-renderHome = function(){ _rh(); const h = document.getElementById("view-home"); if (h && !installata()) h.insertAdjacentHTML("beforeend", bloccoInstalla(true)); };
-const _rt = renderTu;
-renderTu = function(){
-  _rt();
-  const card = [...document.querySelectorAll("#view-tu .card")].find(c => c.querySelector(".set"));
-  if (!card) return;
-  const first = card.querySelector(".set");
-  if (!installata()) first.insertAdjacentHTML("beforebegin", `<div class="set" style="display:block">${bloccoInstalla(false).replace('class="card"','')}</div>`);
-  const reset = [...card.querySelectorAll(".set")].find(s => /Azzera/.test(s.textContent));
-  (reset || card.lastElementChild).insertAdjacentHTML("beforebegin", bloccoOffline());
+/* blocchi usati dalla nuova interfaccia */
+window.PWA = {
+  installata,
+  bloccoInstalla(compatto){ return installata() ? "" : bloccoInstalla(compatto); },
+  bloccoImpostazioni(){ return (installata() ? "" : `<div class="set" style="display:block">${bloccoInstalla(false).replace('class="card"','')}</div>`) + bloccoOffline(); }
 };
-function aggiorna(){ try { if (curView === "home") renderHome(); if (curView === "tu") renderTu(); } catch(e){} }
+function aggiorna(){ try { if (Router.vista === "home" || Router.vista === "impostazioni") Router.render(); } catch(e){} }
 
 document.addEventListener("click", e => {
   const b = e.target.closest("[data-pact]"); if (!b) return;
@@ -87,7 +80,6 @@ document.addEventListener("click", e => {
   if (b.dataset.pact === "offline") scaricaAudio();
 });
 
-/* scorciatoie: #respiro, #musica, #timer, #programmi, #tu */
-const v = (location.hash || "").slice(1);
-if (["respiro","musica","timer","programmi","tu"].includes(v)) { try { show(v); } catch(e){} } else aggiorna();
+/* le scorciatoie (#respiro, #musica, #timer…) sono gestite dal router */
+aggiorna();
 })();

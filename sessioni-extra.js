@@ -806,10 +806,6 @@ if(imp){
  imp.livello="Corso 15 giorni";
  const g7=imp.sessioni[6];
  if(g7) g7.steps=g7.steps.map(s=>typeof s==="string"&&s.startsWith("Hai completato il corso")?"Hai completato la prima settimana. Da domani la seconda settimana ti porterà verso pratiche più lunghe.|5":s);
- const _rh=renderHome;
- renderHome=function(){ _rh(); const el=document.querySelector("#view-home small.muted"); if(el) el.textContent=el.textContent.replace("/7","/"+imp.sessioni.length); };
 }
 
-// Aggiorna la vista attuale
-try{ refresh(); }catch(e){}
 })();

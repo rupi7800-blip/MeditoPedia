@@ -1,10 +1,11 @@
 {
-  "build": 4,
-  "versione": "1.4",
-  "data": "2026-11-09",
+  "build": 5,
+  "versione": "2.0",
+  "data": "2026-11-14",
   "novita": [
-    "Nuove voci più naturali: Sara (donna) e Nicola (uomo)",
-    "Le voci precedenti restano disponibili in Tu → Impostazioni → Voce",
-    "Nuova sezione Crediti e licenze"
+    "Nuova grafica, tema notte e giorno, dashboard con consigliata del giorno e Riprendi",
+    "39 nuove pratiche con più durate, 17 tecniche di respiro con schede ed editor personalizzato",
+    "29 atmosfere sonore, playlist, timer di autospegnimento con dissolvenza",
+    "Sessioni precise anche a schermo spento; routine, preferiti, cronologia e promemoria"
   ]
 }

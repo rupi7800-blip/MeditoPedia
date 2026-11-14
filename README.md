@@ -1,39 +1,52 @@
 # MeditoPedia
 
-Web app di meditazione in un singolo file (`index.html`), pronta per GitHub Pages.
+App di meditazione, respirazione, rilassamento, sonno e suoni rilassanti.
+Funziona come sito/PWA (GitHub Pages) e come app Android (APK costruito da GitHub Actions con Capacitor).
 
 ## Contenuti
-- **16 programmi, 54 sessioni guidate** con voce italiana (sintesi vocale del browser) e testo a schermo
-  - Percorso: Impara a meditare (corso 7 giorni), Base, Intermedio, Avanzato, Trascendente
-  - Pratiche: Mindfulness, Gentilezza amorevole (Metta), Concentrazione, Gratitudine, Mattino ed energia
-  - Benessere: Sonno, Rilassamento, Ansia e stress, Guarigione, Lasciar andare, Migliorarsi
-- **7 tecniche di respiro** con cerchio animato (quadrato, 4-7-8, coerenza cardiaca, sospiro fisiologico…)
-- **Timer silenzioso** con campane di inizio, fine e a intervalli
-- **Musiche e suoni** generati in tempo reale (nessun file audio): pioggia, onde, vento, ruscello, camino, uccelli, drone armonico, melodia, campane tibetane, onde binaurali alfa/theta/delta. 8 atmosfere, mixer e timer di spegnimento
-- Progressi, serie di giorni, traguardi e umore dopo la pratica, salvati in locale sul dispositivo
+- **Catalogo v2** (`js/catalogo.js`): 39 pratiche in 5 sezioni (Meditazione, Rilassamento, Sonno, Concentrazione + Respirazione), ognuna con più durate (3–45 min). Lo stesso copione si adatta alla durata scelta allungando le pause.
+- **17 tecniche di respirazione** con nome, descrizione, obiettivo, istruzioni, durata consigliata, livello e precauzioni; **editor personalizzato** (inspirazione, pause, espirazione, durata o numero di cicli, velocità, voce, segnali, musica) con calcolo automatico dei cicli e preset salvabili.
+- **Programmi originali** (`js/contenuti.js`, `sessioni-extra.js`, `umore.js`): 17 programmi e oltre 180 sessioni, corso "Impara a meditare", check-in dell'umore.
+- **Routine**: 5 pronte (mattino, pausa respiratoria, sera, sonno, concentrazione) e un editor per combinare respiro, meditazione, musica e silenzio.
+- **Suoni** (`js/audio.js`): 25 generatori (pioggia, temporale, onde, vento, ruscello, cascata, foresta, grilli, gufo, camino, pianoforte, ambient, suoni eterei, drone, campane, rumore bianco/rosa/marrone, binaurali) e 29 atmosfere; mixer, playlist con casuale/ripetizione, preferiti, timer di autospegnimento con dissolvenza regolabile.
+- **Timer silenzioso**, preferiti, cronologia, "riprendi da dove eri rimasto", promemoria, tema notte/giorno, esportazione/importazione dei dati.
 
-## File
-- `index.html` — l'app
-- `sessioni-extra.js` — 120 sessioni lunghe (8 per programma, escluso Base: 4 da 12-17 min e 4 da 20-30 min)
-- `voce-integrata.js` + cartella `audio/` — voci integrate Paola (donna) e Riccardo (uomo), pre-registrate: uguali per tutti, senza installare niente. Velocità regolabile dal 70% al 130% senza alterare il timbro. Le voci di sistema non sono usate
+## Architettura
+| File | Ruolo |
+|---|---|
+| `index.html`, `css/app.css` | struttura e stile |
+| `js/base.js` | stato (`localStorage`, compatibile con la v1), utilità |
+| `js/contenuti.js`, `sessioni-extra.js`, `umore.js` | contenuti originali (testi invariati: gli audio sono legati al testo) |
+| `js/catalogo.js` | nuovi contenuti, schede del respiro, routine, generatore dei copioni |
+| `js/audio.js` | motore audio: bus separati voce/musica/segnali, ducking, timer di spegnimento, generatori di suoni |
+| `js/voce.js` | voci integrate: pacchetti, durata esatta dagli MP3, rallentamento WSOLA, voce di riserva |
+| `js/motore.js` | **motore delle sessioni a timeline sull'orologio audio** |
+| `js/sfondo.js` | riproduzione in background: Media Session, elemento audio "keep-alive", ponte col plugin Android |
+| `js/app.js` | interfaccia, router (`#home`, `#esplora`, `#respiro`, `#suoni`, `#tu`…), promemoria |
+| `android-nativo/` | plugin e servizio Android (foreground service `mediaPlayback`, MediaSession, focus audio, cuffie) |
 
-I due file `.js` vanno nella stessa cartella di `index.html`, che li carica con queste righe prima di `</body>`:
-```html
-<script src="sessioni-extra.js"></script>
-<script src="voce-integrata.js"></script>
+### Tempo e schermo spento
+Ogni sessione diventa una timeline deterministica. Il tempo è `AudioContext.currentTime − base`: orologio monotono che avanza anche a schermo spento e si ferma in pausa (contesto audio sospeso), quindi non c'è deriva. Voce, segnali delle fasi, campane e abbassamenti della musica sono programmati con `start(quando)` fino a 75 s in anticipo, quindi suonano all'istante giusto anche se il browser rallenta i timer JavaScript. L'interfaccia ricalcola lo stato dalla timeline quando torna visibile. Il timer di autospegnimento è una rampa di volume programmata sull'orologio audio.
+
+Su Android (APK) il servizio in primo piano impedisce al sistema di congelare l'app, fornisce i controlli su notifica/schermata di blocco/cuffie, mette in pausa durante le chiamate e quando si scollegano le cuffie.
+
+## Voci
+Sara e Nicola: Kokoro-82M (Apache 2.0), frasi pre-generate in `audio/<voce>/` (indice + pacchetti `.bin`). Per aggiungere frasi:
 ```
+node strumenti/esporta_frasi.js                       # aggiorna strumenti/frasi.json
+python strumenti/genera_kokoro_onnx.py CARTELLA_MODELLO sara nicola   # genera solo le frasi mancanti
+```
+`genera_kokoro_onnx.py` usa kokoro-onnx (senza PyTorch); `genera_kokoro.py` e il workflow `voci-kokoro.yml` restano per la rigenerazione completa.
 
-## Pubblicare su GitHub Pages
-1. Crea un repository (es. `meditopedia`) e carica nella radice i file `.html` e `.js` **e la cartella `audio/`** (con le sottocartelle `paola` e `riccardo`).
-2. Settings → Pages → Source: *Deploy from a branch* → branch `main`, cartella `/ (root)` → Save.
-3. Dopo un minuto l'app è online su `https://<tuo-utente>.github.io/meditopedia/`.
+## Test
+```
+python3 -m http.server 8765 &
+node test/funzionali.js
+```
+42 verifiche: viste, durate di tutti i copioni, calcolo dei cicli, pausa/ripresa, JavaScript bloccato per 8 s, avanti/indietro, fine sessione e storico, ripresa da posizione, timer di autospegnimento, preferiti, routine, promemoria.
 
-## Note
-- La voce usa le voci italiane installate sul dispositivo; si può scegliere voce e velocità in **Tu → Impostazioni**.
-- Le onde binaurali richiedono le cuffie.
-- Su iPhone l'audio può fermarsi a schermo bloccato: meglio tenere l'app in primo piano.
+## Pubblicazione
+- **Web**: GitHub Pages dalla radice del ramo `main`.
+- **Android**: il workflow `APK Android` costruisce l'APK a ogni push su `main` e lo pubblica nella release `android-latest`. Avviato a mano su un altro ramo, produce un APK di prova come artefatto senza toccare la release.
 
-## Voci integrate
-Le frasi sono state sintetizzate con [Piper](https://github.com/rhasspy/piper) (voci italiane gratuite *paola-medium* e *riccardo-x_low*).
-Ogni voce ha `audio/<voce>/indice.json` e un pacchetto `.bin` per programma: l'app scarica solo quello che serve.
-Se modifichi il testo di una frase, quella frase non avrà più l'audio e verrà solo mostrata a schermo, finché non rigeneri gli audio.
+Le pratiche sono di benessere e non sostituiscono il parere di medici o psicoterapeuti.

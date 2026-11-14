@@ -8,8 +8,8 @@
    ========================================================= */
 (function(){
 "use strict";
-const APP_BUILD = 4;
-const APP_VERSIONE = "1.4";
+const APP_BUILD = 5;
+const APP_VERSIONE = "2.0";
 const SITO = "https://rupi7800-blip.github.io/meditopedia/";
 const APK = "https://github.com/rupi7800-blip/meditopedia/releases/download/android-latest/MeditoPedia.apk";
 const nativa = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
@@ -28,7 +28,7 @@ async function controlla(manuale){
    mostraBanner(v);
    notifica(v);
   } else if(manuale) toast("✓ Hai già l'ultima versione ("+APP_VERSIONE+")");
-  if(curView==="tu") try{ renderTu(); }catch(e){}
+  renderTu();
  }catch(e){ if(manuale) toast("Controllo non riuscito: verifica la connessione"); }
 }
 
@@ -36,7 +36,7 @@ async function controlla(manuale){
 const css=document.createElement("style");
 css.textContent=`
 #aggBanner{position:fixed;left:10px;right:10px;top:calc(10px + env(safe-area-inset-top));z-index:70;max-width:560px;margin:0 auto;display:none;
- background:linear-gradient(150deg,#2a3d5e,#1b2640);border:1px solid #8fb8a888;border-radius:18px;padding:14px 16px;box-shadow:0 14px 40px #000a;animation:aggIn .4s ease}
+ background:var(--card2);color:var(--text);border:1px solid var(--accent);border-radius:18px;padding:14px 16px;box-shadow:0 14px 40px #000a;animation:aggIn .4s ease}
 #aggBanner.on{display:block}
 @keyframes aggIn{from{transform:translateY(-30px);opacity:0}to{transform:none;opacity:1}}
 #aggBanner ul{margin:8px 0 0 18px;font-size:.84rem;color:var(--muted)}
@@ -50,7 +50,7 @@ function mostraBanner(v){
   <span style="font-size:1.6rem">✨</span>
   <div style="flex:1"><b>Nuova versione ${v.versione} disponibile</b>
    ${v.novita&&v.novita.length?`<ul>${v.novita.slice(0,4).map(n=>`<li>${esc(n)}</li>`).join("")}</ul>`:""}
-   <div class="row"><button class="btn sm" data-gact="aggiorna">${nativa?"⬇️ Scarica aggiornamento":"🔄 Aggiorna ora"}</button><button class="btn sm ghost" data-gact="dopo">Più tardi</button></div>
+   <div class="row"><button class="btn sm" data-gact="aggiorna">${nativa?"Scarica aggiornamento":"Aggiorna ora"}</button><button class="btn sm ghost" data-gact="dopo">Più tardi</button></div>
   </div></div>`;
  ban.classList.add("on");
 }
@@ -105,18 +105,14 @@ async function periodico(){
  }catch(e){}
 }
 
-/* ---------- impostazioni ---------- */
-const _rt=renderTu;
-renderTu=function(){
- _rt();
- const card=[...document.querySelectorAll("#view-tu .card")].find(c=>c.querySelector(".set")); if(!card) return;
- const reset=[...card.querySelectorAll(".set")].find(s=>/Azzera/.test(s.textContent));
+/* ---------- impostazioni (blocco usato dalla nuova interfaccia) ---------- */
+window.Aggiorna={ blocco(){
  const nuova=remota&&remota.build>APP_BUILD;
- (reset||card.lastElementChild).insertAdjacentHTML("beforebegin",`
-  <div class="set" style="display:block"><div class="row sp"><div><h3>Aggiornamenti</h3><p class="muted small">Versione installata: ${APP_VERSIONE}${nuova?` · <b style="color:var(--accent)">disponibile ${remota.versione}</b>`:""}</p></div>
-   <button class="btn sm ${nuova?"":"ghost"}" data-gact="${nuova?"aggiorna":"controlla"}">${nuova?"🔄 Aggiorna":"Controlla"}</button></div></div>
-  <div class="set"><div><h3>Notifiche aggiornamenti</h3><p class="muted small">Ti avviso quando esce una nuova versione</p></div><button class="switch ${ST.notifAgg?"on":""}" data-gact="notif"></button></div>`);
-};
+ return `<div class="set" style="display:block"><div class="row sp"><div><h3>Aggiornamenti</h3><p class="muted small">Versione installata: ${APP_VERSIONE}${nuova?` · <b style="color:var(--accent)">disponibile ${remota.versione}</b>`:""}</p></div>
+   <button class="btn sm ${nuova?"":"ghost"}" data-gact="${nuova?"aggiorna":"controlla"}">${nuova?"Aggiorna":"Controlla"}</button></div></div>
+  <div class="set"><div><h3>Notifiche aggiornamenti</h3><p class="muted small">Ti avviso quando esce una nuova versione</p></div><button class="switch ${ST.notifAgg?"on":""}" data-gact="notif"></button></div>`;
+}};
+const renderTu=()=>{ try{ if(Router.vista==="impostazioni") Router.render(); }catch(e){} };
 
 document.addEventListener("click",async e=>{
  const b=e.target.closest("[data-gact]"); if(!b) return;
