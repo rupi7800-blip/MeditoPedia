@@ -43,7 +43,7 @@ python strumenti/genera_kokoro_onnx.py CARTELLA_MODELLO sara nicola   # genera s
 python3 -m http.server 8765 &
 node test/funzionali.js
 ```
-42 verifiche: viste, durate di tutti i copioni, calcolo dei cicli, pausa/ripresa, JavaScript bloccato per 8 s, avanti/indietro, fine sessione e storico, ripresa da posizione, timer di autospegnimento, preferiti, routine, promemoria.
+51 verifiche: viste, durate di tutti i copioni, calcolo dei cicli, pausa/ripresa, JavaScript bloccato per 8 s, avanti/indietro, fine sessione e storico, ripresa da posizione, timer di autospegnimento, preferiti, routine, promemoria, comandi del lettore (pausa, finestra ridotta, ricomincia, stop).
 
 ## Pubblicazione
 - **Web**: GitHub Pages dalla radice del ramo `main`.

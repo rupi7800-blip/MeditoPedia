@@ -198,7 +198,27 @@ function apriPlayer(cfg){
  $("#plVoice").classList.toggle("off",!ST.voice);
  keepAwake(true); animaPlayer();
 }
+/* riduce il lettore nella finestra in basso: la sessione continua */
+function riduciPlayer(){
+ if(!Motore.S.on||Motore.S.finito){ Motore.stop(true); chiudiPlayer(); return; }
+ PL.ridotto=true; $("#player").classList.remove("on","pannello"); document.body.classList.remove("noscroll");
+ Router.render(); aggiornaMini();
+}
+function mostraPlayer(){
+ if(!Motore.S.on) return; PL.ridotto=false;
+ $("#player").classList.add("on"); document.body.classList.add("noscroll"); aggiornaMini(); disegnaPlayer();
+}
+/* stop: termina la sessione e ferma anche la musica di sottofondo */
+function terminaTutto(){ Motore.stop(); stopMusic(); chiudiPlayer(); }
+/* ricomincia dall'inizio */
+function ricomincia(){
+ const S=Motore.S; if(!S.on||S.preparando) return;
+ $("#plDone").classList.remove("on"); S.registrata=false;
+ Motore.vaiA(0); if(S.paused) Motore.riprendi(); A.bell(!!S.cfg.sonno,A.now()+.05);
+ PL.ultimoTesto=""; toast("↺ Sessione ricominciata");
+}
 function chiudiPlayer(){
+ PL.ridotto=false;
  $("#player").classList.remove("on","is-paused","pannello"); document.body.classList.remove("noscroll");
  cancelAnimationFrame(PL.raf); PL.raf=0; keepAwake(false); PL.cfg=null;
  if(!mixActive()) Sfondo.disattiva(); else musicaCambiata();
@@ -239,8 +259,8 @@ Motore.on("preparazione",d=>{ const el=$("#plPrep"); el.classList.toggle("on",!!
 Motore.on("avviso",t=>toast(t));
 Motore.on("avvio",S=>{ setPausedUI(false); Sfondo.aggiorna({titolo:S.cfg.titolo,sotto:S.cfg.sotto}); Sfondo.stato(false,Motore.pos(),S.durata);
  ST.last={ref:S.cfg.ref,ts:Date.now(),pos:0,durata:S.durata}; save(); });
-Motore.on("tick",S=>{ if(ST.last&&S.cfg&&ST.last.ref===S.cfg.ref){ ST.last.pos=Motore.pos(); ST.last.durata=S.durata; } if(Math.random()<.1) save(); Sfondo.stato(S.paused,Motore.pos(),S.durata); });
-Motore.on("pausa",p=>{ setPausedUI(p); Sfondo.stato(p,Motore.pos(),Motore.S.durata); });
+Motore.on("tick",S=>{ if(PL.ridotto) aggiornaMini(); if(ST.last&&S.cfg&&ST.last.ref===S.cfg.ref){ ST.last.pos=Motore.pos(); ST.last.durata=S.durata; } if(Math.random()<.1) save(); Sfondo.stato(S.paused,Motore.pos(),S.durata); });
+Motore.on("pausa",p=>{ setPausedUI(p); aggiornaMini(); Sfondo.stato(p,Motore.pos(),Motore.S.durata); });
 function setPausedUI(on){ $("#plPlay").innerHTML=on?ic("play"):ic("pause"); $("#plPlay").setAttribute("aria-label",on?"Riprendi":"Pausa"); $("#player").classList.toggle("is-paused",on); }
 function registra(S,completa){
  const sec=S.ascoltato||0, min=Math.round(sec/60*10)/10;
@@ -262,6 +282,7 @@ Motore.on("fine",({S})=>{
   setTimeout(()=>{ if(Motore.S===S&&S.on){ Motore.stop(true); chiudiPlayer(); } },6000);
   return;
  }
+ if(PL.ridotto&&!S.cfg.sonno) mostraPlayer();
  $("#doneInfo").textContent=`${S.cfg.titolo} · ${minuti(S.ascoltato)}`;
  $$("#moods button").forEach(b=>b.classList.remove("on"));
  setTimeout(()=>$("#plDone").classList.add("on"),900);
@@ -272,6 +293,7 @@ Motore.on("stop",({S,completa,silenzioso})=>{ if(!S.registrata) registra(S,compl
 Sfondo.suAzione(a=>{
  const S=Motore.S;
  if(S.on){
+  if(a==="stop"){ terminaTutto(); return; }
   if(a==="pause"||a==="interrotto") Motore.pausa();
   else if(a==="play"||a==="ripreso") Motore.riprendi();
   else if(a==="next") Motore.avanti(); else if(a==="prev") Motore.indietro();
@@ -287,7 +309,16 @@ window.addEventListener("audiostato",()=>{ aggiornaMini(); if(Router.vista==="su
 
 /* ---------- mini lettore ---------- */
 function aggiornaMini(){
- const on=mixActive()&&!Motore.S.on; const m=$("#mini");
+ const m=$("#mini"), S=Motore.S;
+ if(S.on&&PL.ridotto){
+  m.classList.add("on","sessione"); const r=S.preparando?null:Motore.istante();
+  $("#miniTxt").innerHTML=`<b>${esc(S.cfg?S.cfg.titolo:"Sessione")}</b><small>${S.paused?"In pausa · ":""}${r?fmt(r.pos)+" / "+fmt(r.durata):"Preparazione…"} · tocca per aprire</small>`;
+  m.classList.toggle("paused",!!S.paused); $("#miniPlay").innerHTML=S.paused?ic("play"):ic("pause");
+  $("#miniPlay").setAttribute("aria-label",S.paused?"Riprendi la sessione":"Metti in pausa la sessione");
+  return;
+ }
+ m.classList.remove("sessione");
+ const on=mixActive()&&!S.on;
  m.classList.toggle("on",on&&Router.vista!=="suoni");
  if(!on) return;
  const p=PRESETS.find(x=>x.id===ST.lastPreset);
@@ -556,7 +587,7 @@ V.suoni=()=>{
  <div id="plEditor"></div>
  ${ST.playlist.length?ST.playlist.map((pl,i)=>`<div class="card riga"><span class="badge-ic">${ic("list")}</span><div class="t"><h3>${esc(pl.nome)}</h3><p>${pl.voci.map(v=>(PRESETS.find(p=>p.id===v.id)||{}).nome+" "+v.min+"′").join(" · ")}</p>
   <p class="durs">${pl.casuale?"<span>casuale</span>":""}${pl.ripeti?"<span>ripeti</span>":""}</p></div>
-  <button class="icbtn" data-act="plplay" data-i="${i}" aria-label="Riproduci playlist">${ic("play")}</button><button class="icbtn" data-act="pledit" data-i="${i}" aria-label="Modifica">${ic("edit")}</button></div>`).join(""):'<p class="muted small">Crea una sequenza di atmosfere: per esempio 20 minuti di pioggia, poi 30 di rumore rosa.</p>'}
+  <button class="icbtn" data-act="listaplay" data-i="${i}" aria-label="Riproduci playlist">${ic("play")}</button><button class="icbtn" data-act="pledit" data-i="${i}" aria-label="Modifica">${ic("edit")}</button></div>`).join(""):'<p class="muted small">Crea una sequenza di atmosfere: per esempio 20 minuti di pioggia, poi 30 di rumore rosa.</p>'}
  <h2>Mixer</h2><p class="muted small">Combina liberamente i livelli. ${ic("music")} I binaurali richiedono le cuffie.</p>
  <div class="mixer">${Object.entries(A.defs).sort((a,b)=>a[1].g.localeCompare(b[1].g)).map(([id,d])=>{ const head=d.g!==g?`<p class="mix-g">${esc(g=d.g)}</p>`:""; const v=ST.mix[id]||0;
   return head+`<div class="mix ${v>0?"on":""}"><span class="emo">${d.icona}</span><span class="nm">${esc(d.nome)}</span><input type="range" min="0" max="1" step="0.01" value="${v}" data-layer="${id}" aria-label="${esc(d.nome)}"></div>`; }).join("")}</div>
@@ -568,7 +599,7 @@ function editorPlaylist(){
  const el=$("#plEditor"); if(!el) return; if(!PLED){ el.innerHTML=""; return; }
  el.innerHTML=`<div class="card editor"><label class="lbl">Nome</label><input class="sel" id="plNome" value="${esc(PLED.nome)}" maxlength="40">
   ${PLED.voci.map((v,i)=>`<div class="blocco"><select class="sel sm" data-pl="id" data-i="${i}">${PRESETS.map(p=>`<option value="${p.id}" ${p.id===v.id?"selected":""}>${p.icona} ${esc(p.nome)}</option>`).join("")}</select>
-   <div class="stepper sm"><button data-act="plmin" data-i="${i}" data-d="-5">−</button><output>${v.min} min</output><button data-act="plmin" data-i="${i}" data-d="5">+</button></div>
+   <div class="stepper sm"><button data-act="listamin" data-i="${i}" data-d="-5">−</button><output>${v.min} min</output><button data-act="listamin" data-i="${i}" data-d="5">+</button></div>
    <button class="icbtn" data-act="plrm" data-i="${i}" aria-label="Rimuovi">${ic("trash")}</button></div>`).join("")}
   <button class="btn sm ghost" data-act="pladd">${ic("plus")} Aggiungi atmosfera</button>
   <div class="set"><div><h3>${ic("shuffle")} Riproduzione casuale</h3></div><button class="switch ${PLED.casuale?"on":""}" data-act="plcas"></button></div>
@@ -830,21 +861,23 @@ document.addEventListener("click",e=>{
   case "preset": suonaPreset(d.id); break;
   case "sucat": Router.param.cat=d.c; Router.render(); break;
   case "mustoggle": if(mixActive()){ if(A.running()){ A.suspend().then(()=>{ Sfondo.stato(true); musicaCambiata(); }); } else { A.resume().then(()=>{ Sfondo.stato(false); musicaCambiata(); }); } } else suonaPreset(ST.lastPreset||"spazio"); break;
-  case "musstop": stopMusic(); break;
-  case "minplay": if(A.running()) A.suspend().then(()=>{ Sfondo.stato(true); aggiornaMini(); }); else A.resume().then(()=>{ Sfondo.stato(false); aggiornaMini(); }); break;
+  case "musstop": if(Motore.S.on){ terminaTutto(); break; } stopMusic(); break;
+  case "miniapri": if(Motore.S.on) mostraPlayer(); else Router.vai("suoni"); break;
+  case "minplay": if(Motore.S.on){ if(Motore.S.paused) Motore.riprendi(); else Motore.pausa(); setTimeout(aggiornaMini,150); break; }
+   if(A.running()) A.suspend().then(()=>{ Sfondo.stato(true); aggiornaMini(); }); else A.resume().then(()=>{ Sfondo.stato(false); aggiornaMini(); }); break;
   case "sleep": Spegni.imposta(+(d.sleep||0)); break;
   case "sleepcustom": { const v=prompt("Minuti prima dello spegnimento (1-240)","25"); const n=Math.round(+v); if(n>=1&&n<=240) Spegni.imposta(n); else if(v) toast("Inserisci un numero tra 1 e 240"); break; }
   case "plnuova": PLED={nome:"La mia playlist",voci:[{id:"pioggia",min:20},{id:"rosa",min:30}],casuale:false,ripeti:false}; editorPlaylist(); break;
   case "pledit": PLED=Object.assign(JSON.parse(JSON.stringify(ST.playlist[+d.i])),{i:+d.i}); editorPlaylist(); break;
   case "pladd": PLED.voci.push({id:"onde",min:15}); editorPlaylist(); break;
   case "plrm": PLED.voci.splice(+d.i,1); editorPlaylist(); break;
-  case "plmin": { const v=PLED.voci[+d.i]; v.min=Math.max(5,Math.min(240,v.min+ +d.d)); editorPlaylist(); break; }
+  case "listamin": { const v=PLED.voci[+d.i]; v.min=Math.max(5,Math.min(240,v.min+ +d.d)); editorPlaylist(); break; }
   case "plcas": PLED.casuale=!PLED.casuale; editorPlaylist(); break;
   case "plrip": PLED.ripeti=!PLED.ripeti; editorPlaylist(); break;
   case "plsalva": { PLED.nome=($("#plNome").value||"Playlist").slice(0,40); if(!PLED.voci.length){ toast("Aggiungi almeno un'atmosfera"); break; } const i=PLED.i; delete PLED.i; if(i!=null) ST.playlist[i]=PLED; else ST.playlist.push(PLED); PLED=null; save(); Router.render(); break; }
   case "planulla": PLED=null; editorPlaylist(); break;
   case "plelimina": if(confirm("Eliminare la playlist?")){ ST.playlist.splice(PLED.i,1); PLED=null; save(); Router.render(); } break;
-  case "plplay": A.resume(); Playlist.avvia(ST.playlist[+d.i]); break;
+  case "listaplay": A.resume(); Playlist.avvia(ST.playlist[+d.i]); break;
   /* routine */
   case "rtedit": RTED=JSON.parse(JSON.stringify(ST.routine.find(x=>x.id===d.id))); Router.vai("routine/modifica"); break;
   case "rtcopia": { const o=ROUTINE_BASE.find(x=>x.id===d.id); RTED=Object.assign(JSON.parse(JSON.stringify(o)),{id:"u"+Date.now(),nome:o.nome+" (mia)"}); Router.vai("routine/nuova"); break; }
@@ -875,7 +908,10 @@ document.addEventListener("click",e=>{
   case "export": scarica("meditopedia-dati-"+dayKey()+".json",JSON.stringify(ST,null,1),"application/json"); break;
   case "reset": if(confirm("Vuoi davvero azzerare tutti i progressi?")){ ST.done={}; ST.hist=[]; ST.minutes=0; ST.sessions=0; ST.last=null; save(); Router.render(); } break;
   /* player */
-  case "plclose": case "plstop": Motore.stop(); chiudiPlayer(); break;
+  case "plclose": riduciPlayer(); break;
+  case "plstop": terminaTutto(); break;
+  case "plapri": mostraPlayer(); break;
+  case "plrestart": ricomincia(); break;
   case "pldone": Motore.stop(true); chiudiPlayer(); break;
   case "plplay": if(Motore.S.paused) Motore.riprendi(); else Motore.pausa(); break;
   case "plskip": Motore.avanti(); break;
@@ -917,12 +953,12 @@ document.addEventListener("change",e=>{
  if(k==="tmbg"){ ST.tmBg=t.value; save(); Router.render(); }
  if(k==="defbg"){ ST.bg=t.value; save(); }
 });
-document.addEventListener("keydown",e=>{ if(!Motore.S.on) return; if(e.code==="Space"&&e.target===document.body){ e.preventDefault(); if(Motore.S.paused) Motore.riprendi(); else Motore.pausa(); } if(e.key==="Escape"){ Motore.stop(); chiudiPlayer(); } if(e.key==="ArrowRight") Motore.avanti(); if(e.key==="ArrowLeft") Motore.indietro(); });
+document.addEventListener("keydown",e=>{ if(!Motore.S.on||!$("#player").classList.contains("on")) return; if(e.code==="Space"&&e.target===document.body){ e.preventDefault(); if(Motore.S.paused) Motore.riprendi(); else Motore.pausa(); } if(e.key==="Escape"&&$("#player").classList.contains("on")) riduciPlayer(); if(e.key==="ArrowRight") Motore.avanti(); if(e.key==="ArrowLeft") Motore.indietro(); });
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden&&Motore.S.on){ keepAwake(true); disegnaPlayer(); } });
 /* app Android: in background ferma le animazioni (risparmio batteria) */
 (function(){ try{ const App=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.App; if(!App) return;
  App.addListener("pause",()=>{ PL.inBackground=true; }); App.addListener("resume",()=>{ PL.inBackground=false; Spegni.controlla(); if(Motore.S.on) disegnaPlayer(); });
- App.addListener("backButton",({canGoBack})=>{ if($("#player").classList.contains("on")){ if($("#player").classList.contains("pannello")) $("#player").classList.remove("pannello"); else if(!Motore.S.on||Motore.S.finito){ Motore.stop(true); chiudiPlayer(); } else toast("Usa ■ per terminare la sessione"); return; }
+ App.addListener("backButton",({canGoBack})=>{ if($("#player").classList.contains("on")){ if($("#player").classList.contains("pannello")) $("#player").classList.remove("pannello"); else riduciPlayer(); return; }
   if(location.hash&&location.hash!=="#home") history.back(); else App.minimizeApp?App.minimizeApp():App.exitApp(); });
  const LN=window.Capacitor.Plugins.LocalNotifications; if(LN) LN.addListener("localNotificationActionPerformed",ev=>{ const x=ev.notification&&ev.notification.extra; if(x&&x.tipo==="programma"&&x.rt) setTimeout(()=>avvia({k:"rt",id:x.rt}),600); else if(x&&x.tipo==="respiro") Router.vai("respiro"); });
 }catch(e){} })();

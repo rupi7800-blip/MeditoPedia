@@ -234,7 +234,8 @@ nav.bottom button.on{color:var(--accent)}nav.bottom button.on .i{transform:trans
 .bar{height:6px;border-radius:9px;background:#ffffff1c;overflow:hidden;cursor:pointer;padding:0}
 .bar i{display:block;height:100%;width:0;background:var(--pc)}
 .pl-time{display:flex;justify-content:space-between;font-size:.78rem;color:#a3b0bf;margin-top:6px;font-variant-numeric:tabular-nums}
-.pl-ctrl{display:flex;justify-content:center;align-items:center;gap:14px;margin-top:10px}
+.pl-ctrl{display:flex;justify-content:center;align-items:center;gap:10px;margin-top:10px}
+@media(max-width:380px){.pl-ctrl{gap:6px}.pl-ctrl .icbtn{width:38px;height:38px;flex-basis:38px}}
 .pl-ctrl .big{background:var(--pc);color:#0c1320}
 #plVoice.off{opacity:.4}
 /* modalità minimale: schermo scuro, luminosità ridotta */
@@ -259,3 +260,10 @@ nav.bottom button.on{color:var(--accent)}nav.bottom button.on .i{transform:trans
 .moods button.on,.moods button:hover{background:var(--pc);transform:scale(1.08)}
 /* check-in umore (umore.js) */
 #checkin .box{background:var(--card)!important;color:var(--text)}
+#mini #miniTxt{cursor:pointer;max-width:58vw;text-align:left;display:flex;flex-direction:column;line-height:1.25;min-width:0}
+#mini #miniTxt b,#mini #miniTxt small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
+#mini #miniTxt small{color:var(--muted);font-size:.74rem;font-variant-numeric:tabular-nums}
+#mini.sessione{border-color:var(--accent);padding-left:12px}
+#mini.sessione .mini-suoni{display:none}
+#mini.sessione .eq i{background:var(--accent)}
+#player.minimale [data-act="plrestart"]{visibility:hidden}

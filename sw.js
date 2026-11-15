@@ -1,11 +1,11 @@
 /* MeditoPedia — service worker: app offline e audio in cache */
-const VERSIONE = "mp-v20";
+const VERSIONE = "mp-v21";
 const SHELL = "shell-" + VERSIONE;
 const AUDIO = "audio-v1";          // gli audio non cambiano tra le versioni dell'app
 const FILE_BASE = [
-  "./", "./index.html", "./css/app.css?v=20",
-  "./js/base.js?v=20", "./js/contenuti.js?v=20", "./sessioni-extra.js?v=20", "./umore.js?v=20", "./js/catalogo.js?v=20", "./js/audio.js?v=20",
-  "./js/voce.js?v=20", "./js/motore.js?v=20", "./js/sfondo.js?v=20", "./js/app.js?v=20", "./pwa.js?v=20", "./aggiorna.js?v=20", "./crediti.js?v=20",
+  "./", "./index.html", "./css/app.css?v=21",
+  "./js/base.js?v=21", "./js/contenuti.js?v=21", "./sessioni-extra.js?v=21", "./umore.js?v=21", "./js/catalogo.js?v=21", "./js/audio.js?v=21",
+  "./js/voce.js?v=21", "./js/motore.js?v=21", "./js/sfondo.js?v=21", "./js/app.js?v=21", "./pwa.js?v=21", "./aggiorna.js?v=21", "./crediti.js?v=21",
   "./manifest.webmanifest", "./icone/icona-192.png", "./icone/icona-512.png", "./icone/apple-touch-icon.png",
   "./audio/sara/indice.json", "./audio/nicola/indice.json", "./audio/paola/indice.json", "./audio/riccardo/indice.json"
 ];
